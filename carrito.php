@@ -282,7 +282,7 @@ while ($row = mysqli_fetch_assoc($result_almacen)) {
                     <p class="mt-3">¿No tienes una cuenta? <a href="#" data-bs-toggle="modal" data-bs-target="#registroModal" data-bs-dismiss="modal">Registrate</a></p>
                     <!-- Botón de Google Sign-In -->
                     <div id="g_id_onload"
-                        data-client_id="TU_CLIENTE_ID.apps.googleusercontent.com"
+                        data-client_id="483219139081-2fqjpmji0tr9m7djadpf9n5p64n21slo.apps.googleusercontent.com"
                         data-login_uri="http://localhost/login.php"
                         data-auto_select="true"
                         data-itp_support="true">
@@ -297,29 +297,75 @@ while ($row = mysqli_fetch_assoc($result_almacen)) {
 
     <!-- Modal para Registro -->
     <div class="modal fade" id="registroModal" tabindex="-1" aria-labelledby="registroModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="registroModalLabel">Registro de Usuario</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form action="registro.php" method="POST">
-                        <label for="nombre">Nombre</label>
-                        <input type="text" id="nombre" name="nombre" class="form-control" required>
+                    <form action="registro.php" method="POST" id="formRegistro">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="nombre" class="form-label">Nombre <span class="text-danger">*</span></label>
+                                <input type="text" id="nombre" name="nombre" class="form-control" required
+                                       placeholder="Ingrese su nombre" minlength="2" maxlength="50">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="apellido" class="form-label">Apellido <span class="text-danger">*</span></label>
+                                <input type="text" id="apellido" name="apellido" class="form-control" required
+                                       placeholder="Ingrese su apellido" minlength="2" maxlength="50">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Correo Electrónico <span class="text-danger">*</span></label>
+                            <input type="email" id="email" name="email" class="form-control" required
+                                   placeholder="ejemplo@correo.com">
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="telefono" class="form-label">Teléfono <span class="text-danger">*</span></label>
+                                <input type="tel" id="telefono" name="telefono" class="form-control" required
+                                       placeholder="Ej: 77123456" pattern="[0-9]{8}"
+                                       title="Ingrese un número de teléfono válido de 8 dígitos">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="fecha_naci" class="form-label">Fecha de Nacimiento <span class="text-danger">*</span></label>
+                                <input type="date" id="fecha_naci" name="fecha_naci" class="form-control" required
+                                       max="<?php echo date('Y-m-d', strtotime('-18 years')); ?>">
+                                <small class="text-muted">Debe ser mayor de 18 años</small>
+                            </div>
+                        </div>
                         
-                        <label for="email">Correo Electrónico</label>
-                        <input type="email" id="email" name="email" class="form-control" required>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="password" class="form-label">Contraseña <span class="text-danger">*</span></label>
+                                <input type="password" id="password" name="password" class="form-control" required
+                                       minlength="8" placeholder="Mínimo 8 caracteres">
+                                <small class="text-muted">Mínimo 8 caracteres</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="password_confirm" class="form-label">Confirmar Contraseña <span class="text-danger">*</span></label>
+                                <input type="password" id="password_confirm" name="password_confirm" class="form-control" required
+                                       minlength="8" placeholder="Repita la contraseña">
+                            </div>
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="terminos" required>
+                            <label class="form-check-label" for="terminos">
+                                Acepto los <a href="#" target="_blank">términos y condiciones</a> <span class="text-danger">*</span>
+                            </label>
+                        </div>
                         
-                        <label for="password">Contraseña</label>
-                        <input type="password" id="password" name="password" class="form-control" required>
-                        
-                        <label for="password_confirm">Confirmar Contraseña</label>
-                        <input type="password" id="password_confirm" name="password_confirm" class="form-control" required>
-                        
-                        <button type="submit" class="btn btn-primary mt-3">Registrarse</button>
+                        <button type="submit" class="btn btn-primary w-100 mt-2">Registrarse</button>
                     </form>
-                    <p class="mt-3">¿Ya tienes una cuenta? <a href="#" data-bs-toggle="modal" data-bs-target="#loginModal" data-bs-dismiss="modal">Inicia sesión</a></p>
+                    <p class="mt-3 text-center">¿Ya tienes una cuenta? <a href="#" data-bs-toggle="modal" data-bs-target="#loginModal" data-bs-dismiss="modal">Inicia sesión</a></p>
                 </div>
             </div>
         </div>
@@ -629,7 +675,7 @@ while ($row = mysqli_fetch_assoc($result_almacen)) {
         }
         window.onload = function () {
             google.accounts.id.initialize({
-                client_id: 'TU_CLIENTE_ID.apps.googleusercontent.com',
+                client_id: '483219139081-2fqjpmji0tr9m7djadpf9n5p64n21slo.apps.googleusercontent.com',
                 callback: handleCredentialResponse
             });
             google.accounts.id.prompt(); // Mostrar el prompt de Google

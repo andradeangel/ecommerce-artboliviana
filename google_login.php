@@ -1,52 +1,122 @@
 <?php
-// Inicia sesión si no está iniciada
-session_start();
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
-// Incluir la conexión a la base de datos
-include('db.php');
+// Start session if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-// Recibir el token de Google
-$data = json_decode(file_get_contents("php://input"));
+// Set headers
+header('Content-Type: application/json');
 
-if (isset($data->id_token)) {
-    $id_token = $data->id_token;
+// Log incoming request
+error_log('Received request: ' . file_get_contents('php://input'));
 
-    // Verificar el token usando la API de Google
-    $url = "https://oauth2.googleapis.com/tokeninfo?id_token=" . $id_token;
-    $response = file_get_contents($url);
-    $user_info = json_decode($response);
+try {
+    // Get and validate input
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
 
-    if (isset($user_info->email)) {
-        // Verifica si el correo electrónico ya existe en la base de datos
-        $email = $user_info->email;
-        $name = $user_info->name;
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        throw new Exception('Invalid JSON: ' . json_last_error_msg());
+    }
 
-        $query = "SELECT * FROM usuarios WHERE correo = '$email' LIMIT 1";
-        $result = mysqli_query($conn, $query);
+    if (!isset($data['id_token'])) {
+        throw new Exception('Token no recibido');
+    }
 
-        if ($result && mysqli_num_rows($result) > 0) {
-            // El usuario ya existe, iniciar sesión
-            $user = mysqli_fetch_assoc($result);
+    // Verify token with Google
+    $id_token = $data['id_token'];
+    $url = "https://oauth2.googleapis.com/tokeninfo?id_token=" . urlencode($id_token);
+    $response = @file_get_contents($url);
+
+    if ($response === false) {
+        throw new Exception('Error al verificar el token con Google');
+    }
+
+    $user_info = json_decode($response, true);
+    
+    if (!isset($user_info['email']) || !$user_info['email_verified']) {
+        throw new Exception('Email no verificado');
+    }
+
+    require_once 'db.php';
+
+    mysqli_begin_transaction($conn);
+
+    try {
+        $email = mysqli_real_escape_string($conn, $user_info['email']);
+        $nombre = mysqli_real_escape_string($conn, $user_info['given_name'] ?? '');
+        $apellido = mysqli_real_escape_string($conn, $user_info['family_name'] ?? '');
+
+        // Check if user exists
+        $stmt = $conn->prepare("SELECT * FROM usuario WHERE correo = ? LIMIT 1");
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        if ($result->num_rows > 0) {
+            $user = $result->fetch_assoc();
             $_SESSION['id_usuario'] = $user['id_usuario'];
             $_SESSION['nombre'] = $user['nombre'];
-            $_SESSION['rol'] = $user['rol']; // Asumiendo que tienes roles
+            $_SESSION['rol'] = $user['rol'];
+            $message = 'Inicio de sesión exitoso';
         } else {
-            // Si no existe, crearlo
-            $query = "INSERT INTO usuarios (nombre, correo, rol) VALUES ('$name', '$email', 'comprador')";
-            mysqli_query($conn, $query);
+            // Create new user
+            $password = password_hash(uniqid(), PASSWORD_DEFAULT);
+            
+            $stmt = $conn->prepare("INSERT INTO usuario (nombre, apellido, correo, contraseña, rol) VALUES (?, ?, ?, ?, 'comprador')");
+            $stmt->bind_param("ssss", $nombre, $apellido, $email, $password);
+            
+            if (!$stmt->execute()) {
+                throw new Exception('Error al crear usuario: ' . $stmt->error);
+            }
+            
+            $id_usuario = $stmt->insert_id;
+            
+            // Create comprador record
+            $stmt = $conn->prepare("INSERT INTO comprador (id_comprador) VALUES (?)");
+            $stmt->bind_param("i", $id_usuario);
+            
+            if (!$stmt->execute()) {
+                throw new Exception('Error al crear comprador: ' . $stmt->error);
+            }
 
-            // Iniciar sesión después de la creación
-            $user_id = mysqli_insert_id($conn);
-            $_SESSION['id_usuario'] = $user_id;
-            $_SESSION['nombre'] = $name;
-            $_SESSION['rol'] = 'comprador'; // O el rol que consideres adecuado
+            $_SESSION['id_usuario'] = $id_usuario;
+            $_SESSION['nombre'] = $nombre;
+            $_SESSION['rol'] = 'comprador';
+            $message = 'Registro exitoso';
         }
 
-        echo json_encode(['success' => true]);
-    } else {
-        echo json_encode(['success' => false, 'message' => 'Token inválido']);
+        mysqli_commit($conn);
+        
+        // Log session data
+        error_log('Session data: ' . print_r($_SESSION, true));
+
+        echo json_encode([
+            'success' => true,
+            'message' => $message,
+            'redirect' => 'index.php',
+            'session_id' => session_id()
+        ]);
+
+    } catch (Exception $e) {
+        mysqli_rollback($conn);
+        throw $e;
     }
-} else {
-    echo json_encode(['success' => false, 'message' => 'Token no recibido']);
+
+} catch (Exception $e) {
+    error_log('Error in google_login.php: ' . $e->getMessage());
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => $e->getMessage()
+    ]);
+}
+
+if (isset($conn)) {
+    mysqli_close($conn);
 }
 ?>

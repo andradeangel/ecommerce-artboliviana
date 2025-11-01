@@ -195,7 +195,8 @@ button:hover {
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    align-items: start;
+    /* height: 100vh; */
     background-color: #f4f7fa;
 }
 

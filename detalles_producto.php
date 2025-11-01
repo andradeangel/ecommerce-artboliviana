@@ -205,7 +205,7 @@ if (isset($_SESSION['carrito']) && !empty($_SESSION['carrito'])) {
                     <p class="mt-3">¿No tienes una cuenta? <a href="#" data-bs-toggle="modal" data-bs-target="#registroModal" data-bs-dismiss="modal">Registrate</a></p>
                     <!-- Botón de Google Sign-In -->
                     <div id="g_id_onload"
-                        data-client_id="TU_CLIENTE_ID.apps.googleusercontent.com"
+                        data-client_id="483219139081-2fqjpmji0tr9m7djadpf9n5p64n21slo.apps.googleusercontent.com"
                         data-login_uri="http://localhost/login.php"
                         data-auto_select="true"
                         data-itp_support="true">
@@ -303,7 +303,7 @@ if (isset($_SESSION['carrito']) && !empty($_SESSION['carrito'])) {
         }
         window.onload = function () {
             google.accounts.id.initialize({
-                client_id: 'TU_CLIENTE_ID.apps.googleusercontent.com',
+                client_id: '483219139081-2fqjpmji0tr9m7djadpf9n5p64n21slo.apps.googleusercontent.com',
                 callback: handleCredentialResponse
             });
             google.accounts.id.prompt(); // Mostrar el prompt de Google

@@ -113,7 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         <!-- Botón de Google Sign-In -->
         <div id="g_id_onload"
-             data-client_id="TU_CLIENTE_ID.apps.googleusercontent.com"
+             data-client_id="483219139081-2fqjpmji0tr9m7djadpf9n5p64n21slo.apps.googleusercontent.com"
              data-login_uri="http://localhost/login.php"
              data-auto_select="true"
              data-itp_support="true">
@@ -143,7 +143,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
     window.onload = function () {
         google.accounts.id.initialize({
-            client_id: 'TU_CLIENTE_ID.apps.googleusercontent.com',
+            client_id: '483219139081-2fqjpmji0tr9m7djadpf9n5p64n21slo.apps.googleusercontent.com',
             callback: handleCredentialResponse
         });
         google.accounts.id.prompt(); // Mostrar el prompt de Google
