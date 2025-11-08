@@ -34,7 +34,7 @@ if (usuarioLogueado()) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ArtesaníaBoliviana - Plataforma de Comercio Artesanal</title>
+    <title>ArtesaníaBoliviana</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
@@ -60,16 +60,12 @@ if (usuarioLogueado()) {
                 <a href="index.php" class="nav-link text-gray-800 mx-3" style="color: black;" onmouseover="this.style.color='#e65b50'" onmouseout="this.style.color='black'">Inicio</a>
                 <a href="productos-artesania-bolivia.php" class="nav-link text-gray-800 mx-3" style="color: black;" onmouseover="this.style.color='#e65b50'" onmouseout="this.style.color='black'">Productos</a>
                 <a href="carrito.php" class="nav-link text-gray-800 mx-3" style="color: black;" onmouseover="this.style.color='#e65b50'" onmouseout="this.style.color='black'">Carrito</a>
-                <a href="#" class="nav-link text-gray-800 mx-3" style="color: black;" onmouseover="this.style.color='#e65b50'" onmouseout="this.style.color='black'">Sobre Nosotros</a>
+                <a href="aboutus.php" class="nav-link text-gray-800 mx-3" style="color: black;" onmouseover="this.style.color='#e65b50'" onmouseout="this.style.color='black'">Sobre Nosotros</a>
             
                 <?php if (usuarioLogueado()): ?>
-                <div class="relative">
-                    <button id="userMenuButton" class="flex items-center focus:outline-none" onclick="toggleUserMenu()">
-                        <span class="mr-2"><?php echo htmlspecialchars($usuario_nombre); ?></span>
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </button>
-                    <div id="userMenu" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg hidden">
+                <div class="flex items-center">
                     <?php
+                        // Determinar la URL del dashboard según el tipo de usuario
                         $dashboard_url = 'dashboard.php'; // URL por defecto
                         switch($usuario_tipo) {
                             case 'comprador':
@@ -86,9 +82,20 @@ if (usuarioLogueado()) {
                             break;
                         }
                     ?>
-                        <a href="<?php echo $dashboard_url; ?>" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Dashboard</a>
-                        <a href="logout.php" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Cerrar Sesión</a>
+                    <!-- Menú de usuario -->
+                    <div class="relative">
+                        <button id="userMenuButton" class="flex items-center focus:outline-none " onclick="toggleUserMenu()">
+                            <span class="mr-2"><?php echo htmlspecialchars($usuario_nombre); ?></span>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                        <div id="userMenu" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg hidden">
+                            <a href="logout.php" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Cerrar Sesión</a>
+                        </div>
                     </div>
+                    <!-- Imagen de Perfil (clickable) -->
+                    <a href="<?php echo $dashboard_url; ?>" class="mx-3 cursor-pointer hover:opacity-80 transition-opacity" title="Ver Perfil">
+                        <img src="img/user.png" alt="Perfil" class="w-10 h-10 rounded-full object-cover border-2 border-gray-300">
+                    </a>
                 </div>
                 <?php else: ?>
 
@@ -97,7 +104,6 @@ if (usuarioLogueado()) {
                 <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#registroModal">Registrarse</button>
 
                 <?php endif; ?>
-
             </div>
         </nav>
     </header>
