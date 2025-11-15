@@ -102,7 +102,7 @@ $query_almacen = "SELECT a.id_almacen,
                            u.provincia,
                            u.calle,
                            u.zona,
-                           u.nro_puerta
+                           u.nro
                     FROM almacen a 
                     INNER JOIN ubicacion u ON a.id_almacen = u.id_almacen";
 
@@ -112,6 +112,17 @@ $almacen = [];
 while ($row = mysqli_fetch_assoc($result_almacen)) {
     $almacen[] = $row;
 }
+
+$productos_payload = [];
+foreach ($productos_en_carrito as $producto_carrito) {
+    $productos_payload[] = [
+        'id_producto' => (int) $producto_carrito['id_producto'],
+        'cantidad' => (int) $producto_carrito['cantidad']
+    ];
+}
+
+clearstatcache(true, __DIR__ . '/img/qr_code.png');
+$qr_version = file_exists(__DIR__ . '/img/qr_code.png') ? filemtime(__DIR__ . '/img/qr_code.png') : time();
 
 ?>
 
@@ -459,8 +470,8 @@ while ($row = mysqli_fetch_assoc($result_almacen)) {
                             <div class="col-md-4">
                                 <h2 class="mb-4">Métodos de Pago</h2>
                                 <div class="form-check mb-3">
-                                    <input class="form-check-input" type="radio" name="paymentMethod" id="paymentMethod1" value="creditCard" required>
-                                    <label class="form-check-label" for="paymentMethod1">Tarjeta de Crédito/Débito</label>
+                                    <input class="form-check-input" type="radio" name="paymentMethod" id="paymentMethod1-" value="creditCard" disabled>
+                                    <label class="form-check-label" for="paymentMethod1">Tarjeta de Crédito/Débito (Proximamente)</label>
                                 </div>
                                 <div class="form-check mb-3">
                                     <input class="form-check-input" type="radio" name="paymentMethod" id="paymentMethod2" value="bankTransfer" required>
@@ -476,12 +487,12 @@ while ($row = mysqli_fetch_assoc($result_almacen)) {
                         </div>
                     </div>
 
-                    <!-- Segunda Sección: Información de entrega -->
+                    <!-- Segunda Sección: Información de Entrega y Detalles de Pago -->
                     <div id="deliverySection" style="display: none;">
                         <h2 class="mb-4">Información de Entrega y Detalles de Pago</h2>
                         <div class="row">
                             <div class="col-md-6">
-                                <div class="mb-3">
+                                <!-- <div class="mb-3">
                                     <label for="warehouseSelect" class="form-label">Seleccionar Almacén</label>
                                     <select class="form-select" id="warehouseSelect" name="almacen" required>
                                         <option value="">Seleccione un almacén</option>
@@ -508,7 +519,7 @@ while ($row = mysqli_fetch_assoc($result_almacen)) {
                                             </option>
                                         <?php endforeach; ?>
                                     </select>
-                                </div>
+                                </div> -->
                                 <div id="warehouseInfo" class="mb-3" style="display: none;">
                                     <h6>Información del Almacén</h6>
                                     <p><strong>Departamento:</strong> <span id="warehouseDepartamento"></span></p>
@@ -518,19 +529,21 @@ while ($row = mysqli_fetch_assoc($result_almacen)) {
 
                                 <div class="mb-3">
                                     <label for="nombre_comprador" class="form-label">Nombre del Comprador</label>
-                                    <input type="text" class="form-control" id="nombre_comprador" name="nombre_comprador" required>
+                                    <input type="text" class="form-control" id="nombre_comprador" name="nombre_comprador" value="<?php echo htmlspecialchars($usuario_nombre); ?>" required>
                                 </div>
 
                                 <div class="mb-3">
                                     <label for="address" class="form-label">Dirección de Entrega</label>
                                     <input type="text" class="form-control" id="address" name="direccion_entrega" required>
                                 </div>
+
                                 <div class="mb-3">
-                                    <label for="reference" class="form-label">Referencia</label>
-                                    <input type="text" class="form-control" id="reference" name="referencia">
+                                    <label for="numero_contacto" class="form-label">Número de Contacto</label>
+                                    <input type="tel" class="form-control" id="numero_contacto" name="numero_contacto" pattern="[0-9]{8,}" placeholder="Ej: 77123456" required>
                                 </div>
 
                                 <div id="mapContainer" class="mt-3"></div>
+                                <p id="ubicacion_actual" class="mt-2 text-muted"></p>
 
                                 <div class="row">
                                     <div class="col-md-6">
@@ -546,7 +559,7 @@ while ($row = mysqli_fetch_assoc($result_almacen)) {
                                         </div>
                                     </div>
                                 </div>
-                                <div class="mb-3">
+                                <!-- <div class="mb-3">
                                     <label for="deliveryCompany" class="form-label">Empresa de Delivery</label>
                                     <select class="form-select" id="deliveryCompany" name="empresa_delivery" required>
                                         <option value="">Seleccione una empresa</option>
@@ -554,7 +567,7 @@ while ($row = mysqli_fetch_assoc($result_almacen)) {
                                             <option value="<?php echo $empresa['id_empresa']; ?>"><?php echo $empresa['nombre']; ?></option>
                                         <?php endforeach; ?>
                                     </select>
-                                </div>
+                                </div> -->
 
                                 <!-- Resumen de Costos -->
                                 <div class="row mt-4">
@@ -591,12 +604,31 @@ while ($row = mysqli_fetch_assoc($result_almacen)) {
                                     </div>
                                     <div id="bankTransferDetails" class="payment-details" style="display: none;">
                                         <h4>Transferencia Bancaria</h4>
-                                        <p>Realice la transferencia a la cuenta bancaria que le será proporcionada tras completar la compra.</p>
+                                        <div class="alert alert-info mt-3">
+                                            <strong>Datos Bancarios:</strong><br>
+                                            Banco: Banco X<br>
+                                            Número de Cuenta: 123456789<br>
+                                            Titular: ArtesaníaBolivia
+                                        </div>
+                                        <div class="mb-3 mt-3">
+                                            <label for="comprobanteBanco" class="form-label"><strong>Subir Comprobante de Pago <span class="text-danger">*</span></strong></label>
+                                            <input type="file" class="form-control" id="comprobanteBanco" name="comprobante_pago" accept="image/*,.pdf">
+                                            <small class="text-muted">Formatos aceptados: JPG, PNG, PDF (Máx. 5MB)</small>
+                                            <div id="previewBanco" class="mt-2"></div>
+                                        </div>
                                     </div>
                                     <div id="qrCodeContainer" class="payment-details" style="display: none;">
                                         <h4>Pago Móvil (QR)</h4>
-                                        <p>Escanee el código QR proporcionado para completar el pago móvil.</p>
-                                        <div id="qrCode"></div>
+                                        <p>Escanee el código QR proporcionado para completar el pago.</p>
+                                        <div class="text-center my-3">
+                                            <img src="<?php echo 'img/qr_code.png?v=' . $qr_version; ?>" alt="Código QR de Pago" class="img-fluid" style="max-width: 250px; border: 2px solid #ddd; padding: 10px; border-radius: 8px;">
+                                        </div>
+                                        <div class="mb-3 mt-3">
+                                            <label for="comprobanteQR" class="form-label"><strong>Subir Comprobante de Pago <span class="text-danger">*</span></strong></label>
+                                            <input type="file" class="form-control" id="comprobanteQR" name="comprobante_pago" accept="image/*,.pdf">
+                                            <small class="text-muted">Formatos aceptados: JPG, PNG, PDF (Máx. 5MB)</small>
+                                            <div id="previewQR" class="mt-2"></div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -604,10 +636,17 @@ while ($row = mysqli_fetch_assoc($result_almacen)) {
 
                         <div class="row mt-4">
                             <div class="col-12">
-                                <form action="generar_pdf.php" method="POST">
-                                <button type="submit" class="btn btn-primary" id="confirmOrder">Confirmar Pedido</button>
+                                <form action="procesar_pedido.php" method="POST" id="orderForm" enctype="multipart/form-data">
+                                    <input type="hidden" name="metodo_pago" id="metodoPagoHidden">
+                                    <input type="hidden" name="latitud" id="latitudHidden">
+                                    <input type="hidden" name="longitud" id="longitudHidden">
+                                    <input type="hidden" name="empresa_delivery" id="empresaDeliveryHidden">
+                                    <input type="hidden" name="costo_envio" id="costoEnvioHidden">
+                                    <input type="hidden" name="total_general" id="totalGeneralHidden">
+                                    
+                                    <button type="submit" class="btn btn-primary" id="confirmOrder">Confirmar Pedido</button>
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="backToProducts">Volver</button>
                                 </form>
-                                <button type="button" class="btn btn-secondary me-2" id="backToProducts">Volver</button>
                             </div>
                         </div>
 
@@ -616,7 +655,6 @@ while ($row = mysqli_fetch_assoc($result_almacen)) {
             </div>
         </div>
     </div>
-</div>
 
 
 
@@ -705,6 +743,8 @@ while ($row = mysqli_fetch_assoc($result_almacen)) {
         }
     }
 
+    window.productosCarrito = <?php echo json_encode($productos_payload); ?>;
+
     document.addEventListener("DOMContentLoaded", function () {
         // Función para mostrar/ocultar secciones y detalles de métodos de pago
         const paymentMethodInputs = document.querySelectorAll("input[name='paymentMethod']");
@@ -733,24 +773,13 @@ while ($row = mysqli_fetch_assoc($result_almacen)) {
                     document.getElementById("bankTransferDetails").style.display = "block";
                 } else if (this.value === "mobilePayment") {
                     document.getElementById("qrCodeContainer").style.display = "block";
-                    generateQRCode();
                 }
             });
         });
 
-        // Generación de QR para pago móvil
-        function generateQRCode() {
-            const qrCodeContainer = document.getElementById("qrCode");
-            qrCodeContainer.innerHTML = '';
-            new QRCode(qrCodeContainer, {
-                text: 'https://ejemplo-pago-movil.com/pago123',
-                width: 200,
-                height: 200
-            });
-        }
+        // Ya no se necesita generar QR dinámicamente, se usa imagen fija
+        // La imagen se muestra directamente en el HTML
     });
-
-
 
     document.addEventListener("DOMContentLoaded", function () {
         // Elementos del DOM
@@ -877,6 +906,141 @@ while ($row = mysqli_fetch_assoc($result_almacen)) {
 
     });
 
+    // Validar y llenar formulario antes de enviar
+const orderForm = document.getElementById('orderForm');
+if (orderForm) {
+    orderForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const nombreInput = document.getElementById('nombre_comprador');
+        const nombre = nombreInput ? nombreInput.value.trim() : '';
+        const numeroContactoInput = document.getElementById('numero_contacto');
+        const numeroContacto = numeroContactoInput ? numeroContactoInput.value.trim() : '';
+        const metodoPago = document.querySelector('input[name="paymentMethod"]:checked');
+        const latitudInput = document.getElementById('latitude');
+        const longitudInput = document.getElementById('longitude');
+        const costoEnvioTexto = document.getElementById('deliveryCost').textContent || '0';
+        const totalGeneralTexto = document.getElementById('totalGeneral').textContent || document.getElementById('subtotalProducts').textContent || '0';
+        const direccionInput = document.getElementById('address');
+        const direccion = direccionInput ? direccionInput.value.trim() : '';
+        const referenciaInput = document.getElementById('reference');
+        const referencia = referenciaInput ? referenciaInput.value.trim() : '';
+
+        if (!nombre) {
+            alert('Por favor ingrese su nombre completo');
+            if (nombreInput) {
+                nombreInput.focus();
+            }
+            return;
+        }
+
+        if (!direccion) {
+            alert('Por favor ingrese la dirección de entrega');
+            if (direccionInput) {
+                direccionInput.focus();
+            }
+            return;
+        }
+
+        if (!numeroContacto || numeroContacto.length < 8) {
+            alert('Por favor ingrese un número de contacto válido (mínimo 8 dígitos)');
+            if (numeroContactoInput) {
+                numeroContactoInput.focus();
+            }
+            return;
+        }
+
+        if (!metodoPago) {
+            alert('Por favor seleccione un método de pago');
+            return;
+        }
+
+        let fileInput = null;
+        if (metodoPago.value === 'bankTransfer') {
+            fileInput = document.getElementById('comprobanteBanco');
+        } else if (metodoPago.value === 'mobilePayment') {
+            fileInput = document.getElementById('comprobanteQR');
+        }
+
+        if (!fileInput || !fileInput.files.length) {
+            alert('Por favor cargue el comprobante de pago correspondiente');
+            if (fileInput) {
+                fileInput.focus();
+            }
+            return;
+        }
+
+        if (!latitudInput.value || !longitudInput.value) {
+            alert('Por favor seleccione su ubicación en el mapa');
+            return;
+        }
+
+        const productosCarrito = window.productosCarrito || [];
+        if (!productosCarrito.length) {
+            alert('No se encontraron productos en el carrito');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('nombre', nombre);
+        formData.append('numero_contacto', numeroContacto);
+        formData.append('tipo_pago', metodoPago.value);
+        formData.append('latitud', latitudInput.value);
+        formData.append('longitud', longitudInput.value);
+        formData.append('costo_envio', parseFloat(costoEnvioTexto).toFixed(2));
+        formData.append('monto', parseFloat(totalGeneralTexto).toFixed(2));
+        formData.append('direccion', direccion);
+        formData.append('referencia', referencia);
+        formData.append('productos', JSON.stringify(productosCarrito));
+        formData.append('comprobante_pago', fileInput.files[0]);
+
+        try {
+            const response = await fetch('procesar_pedido.php', {
+                method: 'POST',
+                body: formData
+            });
+            const text = await response.text();
+            let resultado;
+            try {
+                resultado = JSON.parse(text);
+            } catch (error) {
+                throw new Error('Error en la respuesta del servidor');
+            }
+
+            if (resultado.exito) {
+                window.location.href = 'Dashboard/Dashboard_comprador.php?seccion=pedidos';
+            } else {
+                alert(resultado.mensaje || 'Ocurrió un problema al procesar el pedido');
+            }
+        } catch (error) {
+            alert(error.message || 'No se pudo procesar el pedido');
+        }
+    });
+}
+
+function obtenerGeolocalizacion() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                const latitudValor = position.coords.latitude.toFixed(8);
+                const longitudValor = position.coords.longitude.toFixed(8);
+                document.getElementById('latitude').value = latitudValor;
+                document.getElementById('longitude').value = longitudValor;
+                const ubicacionActual = document.getElementById('ubicacion_actual');
+                if (ubicacionActual) {
+                    ubicacionActual.textContent = `Ubicación obtenida: ${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`;
+                }
+            },
+            function() {
+                alert('Error al obtener la ubicación. Por favor, intente de nuevo o ingrese manualmente.');
+            }
+        );
+    } else {
+        alert('Geolocalización no disponible en su navegador');
+    }
+}
+
+window.addEventListener('load', obtenerGeolocalizacion);
 </script>
 </body>
 </html>

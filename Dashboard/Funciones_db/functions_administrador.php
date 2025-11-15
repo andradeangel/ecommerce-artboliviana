@@ -246,11 +246,9 @@ function mostrarReportes() {
 function mostrarPedidos() {
     global $conn;
 
-    // Consulta para obtener todos los pedidos
     $sql = "SELECT * FROM PEDIDO_CARRITO";
     $result = $conn->query($sql);
 
-    // Comprobar si se obtuvieron resultados
     if ($result->num_rows > 0) {
         echo "<h2>Gestión de Pedidos</h2>";
         echo "<table>
@@ -260,7 +258,6 @@ function mostrarPedidos() {
                     <th>Estado</th>
                     <th>Fecha</th>
                 </tr>";
-        // Imprimir los datos de cada pedido en una tabla
         while($row = $result->fetch_assoc()) {
             echo "<tr>
                     <td>".$row["id_pedido_carrito"]."</td>
@@ -273,5 +270,170 @@ function mostrarPedidos() {
     } else {
         echo "<p>No hay pedidos registrados.</p>";
     }
+}
+
+function mostrarPagosPendientes() {
+    global $conn;
+
+    $sql = "SELECT p.id_pago, p.monto, p.fecha_pago, p.tipo_pago, p.estado_pago, p.comprobante_pago, GROUP_CONCAT(DISTINCT prod.nombre ORDER BY prod.nombre SEPARATOR ', ') AS productos FROM pago p LEFT JOIN pedido_carrito pc ON p.id_pago = pc.id_pago LEFT JOIN producto prod ON pc.id_producto = prod.id_producto WHERE p.estado_pago = 'pendiente' GROUP BY p.id_pago, p.monto, p.fecha_pago, p.tipo_pago, p.estado_pago, p.comprobante_pago ORDER BY p.fecha_pago DESC";
+    $result = $conn->query($sql);
+
+    if ($result && $result->num_rows > 0) {
+        echo "<h2>Solicitudes de Pago Pendientes</h2>";
+        echo "<div class='table-responsive'>";
+        echo "<table class='table table-striped'>
+                <thead>
+                    <tr>
+                        <th>Producto(s)</th>
+                        <th>Monto</th>
+                        <th>Fecha de Pago</th>
+                        <th>Tipo de Pago</th>
+                        <th>Estado</th>
+                        <th>Comprobante</th>
+                    </tr>
+                </thead>
+                <tbody>";
+        while ($row = $result->fetch_assoc()) {
+            $productos = $row['productos'] ? $row['productos'] : 'Sin productos asociados';
+            $rutaComprobante = $row['comprobante_pago'] ? '../' . ltrim($row['comprobante_pago'], '/') : '';
+            $botonDescarga = $rutaComprobante && file_exists(__DIR__ . '/../../' . ltrim($row['comprobante_pago'], '/'))
+                ? "<a class='btn btn-link btn-sm' href='" . htmlspecialchars($rutaComprobante) . "' download>Descargar</a>"
+                : 'Sin comprobante';
+            echo "<tr>
+                    <td>" . htmlspecialchars($productos) . "</td>
+                    <td>" . number_format((float) $row['monto'], 2) . "</td>
+                    <td>" . htmlspecialchars($row['fecha_pago']) . "</td>
+                    <td>" . htmlspecialchars($row['tipo_pago']) . "</td>
+                    <td>
+                        <form method='POST' class='d-flex align-items-center gap-2'>
+                            <input type='hidden' name='id_pago' value='" . (int) $row['id_pago'] . "'>
+                            <select name='estado_pago' class='form-select form-select-sm'>
+                                <option value='pendiente'" . ($row['estado_pago'] === 'pendiente' ? " selected" : "") . ">Pendiente</option>
+                                <option value='completado'" . ($row['estado_pago'] === 'completado' ? " selected" : "") . ">Completado</option>
+                            </select>
+                            <button type='submit' name='actualizar_estado_pago' class='btn btn-primary btn-sm'>Actualizar</button>
+                        </form>
+                    </td>
+                    <td>" . $botonDescarga . "</td>
+                </tr>";
+        }
+        echo "</tbody></table>";
+        echo "</div>";
+    } else {
+        echo "<p>No hay pagos pendientes.</p>";
+    }
+}
+
+function mostrarEntregas() {
+    global $conn;
+
+    $sql = "SELECT pc.id_pedido_carrito, pc.estado_pedido, prod.nombre AS nombre_producto, u.calle, u.nro, u.latitud, u.longitud FROM pedido_carrito pc LEFT JOIN ubicacion u ON pc.id_ubicacion = u.id_ubicacion LEFT JOIN producto prod ON pc.id_producto = prod.id_producto WHERE pc.estado_pedido = 'pendiente' ORDER BY pc.fecha_pedido DESC";
+    $result = $conn->query($sql);
+
+    if ($result && $result->num_rows > 0) {
+        echo "<h2>Entregas</h2>";
+        echo "<div class='table-responsive'>";
+        echo "<table class='table table-striped'>
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Calle</th>
+                        <th>Número</th>
+                        <th>Ubicación</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>";
+        while ($row = $result->fetch_assoc()) {
+            $producto = $row['nombre_producto'] ? $row['nombre_producto'] : 'Producto no disponible';
+            $calle = $row['calle'] ? $row['calle'] : 'Sin calle';
+            $numero = isset($row['nro']) ? $row['nro'] : 'N/A';
+            $latitud = $row['latitud'];
+            $longitud = $row['longitud'];
+            $tieneCoordenadas = $latitud !== null && $longitud !== null;
+            $urlMapa = $tieneCoordenadas ? 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode($latitud . ',' . $longitud) : '';
+            $enlaceMapa = $tieneCoordenadas ? "<a href='" . htmlspecialchars($urlMapa) . "' target='_blank' rel='noopener noreferrer'>Ver en mapa</a>" : 'Sin coordenadas';
+            $estadoActual = $row['estado_pedido'] ? $row['estado_pedido'] : 'pendiente';
+            echo "<tr>
+                    <td>" . htmlspecialchars($producto) . "</td>
+                    <td>" . htmlspecialchars($calle) . "</td>
+                    <td>" . htmlspecialchars($numero) . "</td>
+                    <td>" . $enlaceMapa . "</td>
+                    <td>
+                        <form method='POST' class='d-flex align-items-center gap-2'>
+                            <input type='hidden' name='id_pedido' value='" . (int) $row['id_pedido_carrito'] . "'>
+                            <select name='estado_pedido' class='form-select form-select-sm'>
+                                <option value='pendiente'" . ($estadoActual === 'pendiente' ? " selected" : "") . ">Pendiente</option>
+                                <option value='completado'" . ($estadoActual === 'completado' ? " selected" : "") . ">Completado</option>
+                                <option value='cancelado'" . ($estadoActual === 'cancelado' ? " selected" : "") . ">Cancelado</option>
+                            </select>
+                            <button type='submit' name='actualizar_estado_entrega' class='btn btn-primary btn-sm'>Actualizar</button>
+                        </form>
+                    </td>
+                </tr>";
+        }
+        echo "</tbody></table>";
+        echo "</div>";
+    } else {
+        echo "<p>No hay entregas pendientes.</p>";
+    }
+}
+
+function mostrarFormularioQR() {
+    $rutaPublica = '../img/qr_code.png';
+    $rutaFisica = dirname(dirname(__DIR__)) . '/img/qr_code.png';
+    clearstatcache(true, $rutaFisica);
+    $version = file_exists($rutaFisica) ? filemtime($rutaFisica) : time();
+    if (isset($_SESSION['qr_version']) && $_SESSION['qr_version'] > $version) {
+        $version = (int) $_SESSION['qr_version'];
+    }
+    echo "<h2>Actualizar Código QR</h2>";
+    echo "<div class='card shadow-sm'><div class='card-body'>";
+    echo "<p class='mb-3'>Carga una imagen PNG para reemplazar el código QR actual.</p>";
+    echo "<div class='mb-4'><img src='" . htmlspecialchars($rutaPublica . '?v=' . $version) . "' alt='Código QR actual' class='img-fluid' style='max-width: 240px;'></div>";
+    echo "<form method='POST' enctype='multipart/form-data' class='d-flex flex-column gap-3'>";
+    echo "<div><input type='file' name='qr_imagen' accept='image/png' class='form-control' required></div>";
+    echo "<button type='submit' name='actualizar_qr' class='btn btn-primary align-self-start'>Actualizar QR</button>";
+    echo "</form>";
+    echo "</div></div>";
+}
+
+function actualizarEstadoPedido($idPedido, $estadoPedido) {
+    global $conn;
+
+    $estadosPermitidos = ['pendiente', 'completado', 'cancelado'];
+    if (!in_array($estadoPedido, $estadosPermitidos, true)) {
+        return false;
+    }
+
+    $stmt = $conn->prepare("UPDATE pedido_carrito SET estado_pedido = ? WHERE id_pedido_carrito = ?");
+    if (!$stmt) {
+        return false;
+    }
+
+    $stmt->bind_param("si", $estadoPedido, $idPedido);
+    $resultado = $stmt->execute();
+    $stmt->close();
+
+    return $resultado;
+}
+
+function actualizarEstadoPago($idPago, $estadoPago) {
+    global $conn;
+
+    if ($estadoPago !== 'pendiente' && $estadoPago !== 'completado') {
+        return false;
+    }
+
+    $stmt = $conn->prepare("UPDATE pago SET estado_pago = ? WHERE id_pago = ?");
+    if (!$stmt) {
+        return false;
+    }
+
+    $stmt->bind_param("si", $estadoPago, $idPago);
+    $resultado = $stmt->execute();
+    $stmt->close();
+
+    return $resultado;
 }
 ?>

@@ -1,3 +1,60 @@
+<?php
+session_start();
+require_once 'Funciones_db/functions_administrador.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['actualizar_estado_pago'])) {
+    $id_pago = isset($_POST['id_pago']) ? (int) $_POST['id_pago'] : 0;
+    $estado_pago = isset($_POST['estado_pago']) && $_POST['estado_pago'] === 'completado' ? 'completado' : 'pendiente';
+    if ($id_pago > 0 && actualizarEstadoPago($id_pago, $estado_pago)) {
+        $_SESSION['message'] = 'Estado de pago actualizado correctamente';
+        $_SESSION['message_type'] = 'success';
+    } else {
+        $_SESSION['message'] = 'No se pudo actualizar el estado del pago';
+        $_SESSION['message_type'] = 'danger';
+    }
+    header('Location: dashboard_administrador.php?seccion=pagos');
+    exit();
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['actualizar_estado_entrega'])) {
+    $id_pedido = isset($_POST['id_pedido']) ? (int) $_POST['id_pedido'] : 0;
+    $estado_pedido = isset($_POST['estado_pedido']) ? $_POST['estado_pedido'] : 'pendiente';
+    if ($id_pedido > 0 && actualizarEstadoPedido($id_pedido, $estado_pedido)) {
+        $_SESSION['message'] = 'Estado de entrega actualizado correctamente';
+        $_SESSION['message_type'] = 'success';
+    } else {
+        $_SESSION['message'] = 'No se pudo actualizar el estado de la entrega';
+        $_SESSION['message_type'] = 'danger';
+    }
+    header('Location: dashboard_administrador.php?seccion=entregas');
+    exit();
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['actualizar_qr'])) {
+    $mensaje = 'No se pudo actualizar el código QR';
+    $tipo = 'danger';
+    if (isset($_FILES['qr_imagen']) && $_FILES['qr_imagen']['error'] === UPLOAD_ERR_OK && is_uploaded_file($_FILES['qr_imagen']['tmp_name'])) {
+        $tmpName = $_FILES['qr_imagen']['tmp_name'];
+        $mime = mime_content_type($tmpName);
+        $extension = strtolower(pathinfo($_FILES['qr_imagen']['name'], PATHINFO_EXTENSION));
+        if ($mime === 'image/png' && $extension === 'png') {
+            $destino = __DIR__ . '/../img/qr_code.png';
+            if (move_uploaded_file($tmpName, $destino)) {
+                clearstatcache(true, $destino);
+                $_SESSION['qr_version'] = time();
+                $mensaje = 'Código QR actualizado correctamente';
+                $tipo = 'success';
+            } else {
+                $mensaje = 'No se pudo guardar el archivo del código QR';
+            }
+        } else {
+            $mensaje = 'Solo se permiten imágenes PNG para el código QR';
+        }
+    } else {
+        $mensaje = 'No se recibió una imagen válida';
+    }
+    $_SESSION['message'] = $mensaje;
+    $_SESSION['message_type'] = $tipo;
+    header('Location: dashboard_administrador.php?seccion=actualizarQR');
+    exit();
+}
+?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -40,9 +97,17 @@
                             <li><a class="dropdown-item" href="?seccion=pedidos">Gestión de Pedidos</a></li>
                         </ul>
                     </li>
-                    <!-- Reportes puede estar fuera del menú desplegable -->
                     <li class="nav-item">
                         <a class="nav-link" href="?seccion=reportes">Reportes</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="?seccion=pagos">Solicitud de Pagos</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="?seccion=entregas">Entregas</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="?seccion=actualizarQR">Actualizar QR</a>
                     </li>
                 </ul>
                 <!-- Usuario autenticado -->
@@ -61,15 +126,11 @@
             <?= $_SESSION['message']; ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
-        <?php session_unset(); ?>
+        <?php unset($_SESSION['message'], $_SESSION['message_type']); ?>
     <?php endif; ?>
 
     <main>
         <?php
-        // Incluir el archivo que contiene las funciones de cada sección
-        include('Funciones_db/functions_administrador.php');
-
-        // Comprobar la sección seleccionada
         if (isset($_GET['seccion'])) {
             $seccion = $_GET['seccion'];
             switch ($seccion) {
@@ -108,6 +169,15 @@
                 case 'pedidos':
                     mostrarPedidos();
                     echo '<a href="Funciones_db/Crud_administrador/pedidos/index.php" class="btn btn-custom mt-3">Gestión de Pedidos</a>';
+                    break;
+                case 'pagos':
+                    mostrarPagosPendientes();
+                    break;
+                case 'entregas':
+                    mostrarEntregas();
+                    break;
+                case 'actualizarQR':
+                    mostrarFormularioQR();
                     break;
                 default:
                     echo "<h2>Bienvenido al Dashboard del Administrador</h2>";

@@ -104,7 +104,7 @@ function misPedidos($id_comprador) {
         echo '<th>Subtotal</th>';
         echo '<th>Costo Envío</th>';
         echo '<th>Total</th>';
-        echo '<th>Estado Pago</th>';
+        echo '<th>Verificación Pago</th>';
         echo '</tr>';
         echo '</thead>';
         echo '<tbody>';
