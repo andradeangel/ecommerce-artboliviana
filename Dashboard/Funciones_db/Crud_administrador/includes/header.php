@@ -43,7 +43,7 @@
             <li class="nav-item">
                 <a class="nav-link" href="../../../Dashboard_administrador.php"><i class="fas fa-home"></i> Inicio</a>
             </li>
-            <li class="nav-item">
+            <!-- <li class="nav-item">
                 <a class="nav-link" href="../usuarios/index.php"><i class="fas fa-users"></i> Gestión de Usuarios</a>
             </li>
             <li class="nav-item">
@@ -51,7 +51,7 @@
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="../almacen/index.php"><i class="fas fa-warehouse"></i> Almacenes</a>
-            </li>
+            </li> -->
             <li class="nav-item">
                 <a class="nav-link" href="../../../../index.php"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
             </li>

@@ -13,11 +13,11 @@ if ($id_producto <= 0) {
 // Consulta de productos con unión para obtener el nombre del comunario y la comunidad
 $consulta = "SELECT P.*, U.nombre AS nombre_comunario, U.apellido AS apellido_comunario, C.nombre AS nombre_comunidad, A.nombre AS nombre_almacen
         FROM PRODUCTO P
-        INNER JOIN COMUNARIO CO ON P.id_comunario = CO.id_comunario
-        INNER JOIN USUARIO U ON CO.id_comunario = U.id_usuario
-        INNER JOIN COMUNIDAD C ON CO.id_comunidad = C.id_comunidad
-        INNER JOIN ESTA E ON P.id_producto = E.id_producto
-        INNER JOIN ALMACEN A ON E.id_almacen = A.id_almacen
+        LEFT JOIN COMUNARIO CO ON P.id_comunario = CO.id_comunario
+        LEFT JOIN USUARIO U ON CO.id_comunario = U.id_usuario
+        LEFT JOIN COMUNIDAD C ON CO.id_comunidad = C.id_comunidad
+        LEFT JOIN ESTA E ON P.id_producto = E.id_producto
+        LEFT JOIN ALMACEN A ON E.id_almacen = A.id_almacen
         WHERE P.id_producto = ?";
 
 $stmt = $conn->prepare($consulta);
@@ -30,9 +30,24 @@ if ($resultado->num_rows === 0) {
 }
 
 $producto = $resultado->fetch_assoc();
-
-// Deserializar las imágenes
-$imagenes = unserialize($producto['imagenes']);
+$nombreComunario = trim(($producto['nombre_comunario'] ?? '') . ' ' . ($producto['apellido_comunario'] ?? ''));
+if ($nombreComunario === '') {
+    $nombreComunario = 'No asignado';
+}
+$nombreComunidad = $producto['nombre_comunidad'] ? $producto['nombre_comunidad'] : 'No asignada';
+$nombreAlmacen = $producto['nombre_almacen'] ? $producto['nombre_almacen'] : 'No asignado';
+$imagenesData = @unserialize($producto['imagenes']);
+$imagenes = [];
+if (is_array($imagenesData)) {
+    foreach ($imagenesData as $imagen) {
+        if ($imagen) {
+            $imagenes[] = 'Dashboard/Funciones_db/Crud_administrador/uploads/' . $imagen;
+        }
+    }
+}
+if (!$imagenes) {
+    $imagenes[] = 'img/404.png';
+}
 
 // Verificar si se agrega un producto al carrito
 if (isset($_POST['agregar_carrito'])) {
@@ -128,7 +143,7 @@ if (isset($_SESSION['carrito']) && !empty($_SESSION['carrito'])) {
     </header>
 
     <main class="container mx-auto px-6 py-24" style="padding-top: 150px;">
-        <h1 class="text-4xl font-bold text-center text-gray-800 mb-12"><?php echo $producto['nombre']; ?></h1>
+        <h1 class="text-4xl font-bold text-center text-gray-800 mb-12"><?php echo htmlspecialchars($producto['nombre']); ?></h1>
 
         <div class="flex flex-wrap">
             <!-- Galería de imágenes del producto -->
@@ -137,7 +152,7 @@ if (isset($_SESSION['carrito']) && !empty($_SESSION['carrito'])) {
                     <div class="carousel-inner">
                         <?php foreach ($imagenes as $index => $imagen): ?>
                             <div class="carousel-item <?php echo $index === 0 ? 'active' : ''; ?>">
-                                <img src="<?php echo 'Dashboard/Funciones_db/Crud_administrador/uploads/' . $imagen; ?>" alt="<?php echo $producto['nombre']; ?>" class="d-block w-100 h-96 object-cover">
+                                <img src="<?php echo htmlspecialchars($imagen); ?>" alt="<?php echo htmlspecialchars($producto['nombre']); ?>" class="d-block w-100 h-96 object-cover">
                             </div>
                         <?php endforeach; ?>
                     </div>
@@ -156,21 +171,18 @@ if (isset($_SESSION['carrito']) && !empty($_SESSION['carrito'])) {
             <!-- Detalles del producto -->
             <div class="w-full md:w-1/2 px-6">
                 <h2 class="text-3xl font-bold mb-4">Detalles del producto</h2>
-                <p class="text-gray-600 mb-4"><?php echo $producto['caracteristica']; ?></p>
-                <div class="text-gray-500 mb-2">Artesano: <strong><?php echo $producto['nombre_comunario'] . ' ' . $producto['apellido_comunario']; ?></strong></div>
-                <div class="text-gray-500 mb-4">Comunidad: <strong><?php echo $producto['nombre_comunidad']; ?></strong></div>
-                <div class="text-gray-500 mb-4">Almacen: <strong><?php echo $producto['nombre_almacen']; ?></strong></div>
+                <p class="text-gray-600 mb-4"><?php echo htmlspecialchars($producto['caracteristica']); ?></p>
                 <div class="text-gray-700 text-xl mb-4">Precio: <strong>BOB <?php echo number_format($producto['precio'], 2); ?></strong></div>
-                <div class="text-gray-500 mb-4">Stock disponible: <strong><?php echo $producto['stock']; ?></strong> unidades</div>
+                <div class="text-gray-500 mb-2">Stock disponible: <strong><?php echo htmlspecialchars($producto['stock']); ?></strong> unidades</div>
 
                 <!-- Campo para agregar detalles personalizados -->
                 <form method="POST" action="carrito.php">
-                    <input type="hidden" name="id_producto" value="<?php echo $producto['id_producto']; ?>">
+                    <input type="hidden" name="id_producto" value="<?php echo htmlspecialchars($producto['id_producto']); ?>">
 
-                    <div class="mb-4">
+                    <!-- <div class="mb-4">
                         <label for="detalles" class="block text-gray-700 font-semibold">Detalles del producto (opcional):</label>
                         <input type="text" id="detalles" name="detalles" placeholder="Ej: Color, Talla, Personalización" class="w-full border border-gray-300 rounded-md px-4 py-2">
-                    </div>
+                    </div> -->
 
                     <div class="mb-4">
                         <label for="cantidad" class="block text-gray-700 font-semibold">Cantidad:</label>

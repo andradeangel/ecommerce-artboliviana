@@ -2,7 +2,9 @@
 include("../includes/db.php");
 include("auth_products.php");
 
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 if (!isset($_SESSION['id_usuario'])) {
     header("Location: ../login.php");
@@ -12,7 +14,14 @@ if (!isset($_SESSION['id_usuario'])) {
 $user_id = $_SESSION['id_usuario'];
 
 if (isset($_GET['id_producto'])) {
-    $id_producto = $_GET['id_producto'];
+    $id_producto = (int) $_GET['id_producto'];
+    
+    if ($id_producto <= 0) {
+        $_SESSION['message'] = 'Producto no válido';
+        $_SESSION['message_type'] = 'danger';
+        header("Location: index.php");
+        exit();
+    }
     
     if (!canManageProduct($conn, $user_id, $id_producto)) {
         $_SESSION['message'] = 'No tienes permiso para eliminar este producto';
@@ -21,25 +30,32 @@ if (isset($_GET['id_producto'])) {
         exit();
     }
     
-    // Iniciar una transacción
     mysqli_begin_transaction($conn);
     
     try {
-        // Primero, eliminar la relación en la tabla 'esta'
-        $query_esta = "DELETE FROM esta WHERE IdProducto = $id_producto";
-        mysqli_query($conn, $query_esta);
+        $stmtEsta = $conn->prepare("DELETE FROM esta WHERE id_producto = ?");
+        if (!$stmtEsta) {
+            throw new Exception($conn->error);
+        }
+        $stmtEsta->bind_param("i", $id_producto);
+        if (!$stmtEsta->execute()) {
+            throw new Exception($stmtEsta->error);
+        }
         
-        // Luego, eliminar el producto
-        $query_producto = "DELETE FROM producto WHERE id_producto = $id_producto";
-        mysqli_query($conn, $query_producto);
+        $stmtProducto = $conn->prepare("DELETE FROM producto WHERE id_producto = ?");
+        if (!$stmtProducto) {
+            throw new Exception($conn->error);
+        }
+        $stmtProducto->bind_param("i", $id_producto);
+        if (!$stmtProducto->execute()) {
+            throw new Exception($stmtProducto->error);
+        }
         
-        // Si todo salió bien, confirmar la transacción
         mysqli_commit($conn);
         
         $_SESSION['message'] = 'Producto eliminado correctamente';
         $_SESSION['message_type'] = 'success';
     } catch (Exception $e) {
-        // Si algo salió mal, revertir la transacción
         mysqli_rollback($conn);
         
         $_SESSION['message'] = 'Error al eliminar el producto: ' . $e->getMessage();
@@ -47,5 +63,6 @@ if (isset($_GET['id_producto'])) {
     }
     
     header("Location: index.php");
+    exit();
 }
 ?>

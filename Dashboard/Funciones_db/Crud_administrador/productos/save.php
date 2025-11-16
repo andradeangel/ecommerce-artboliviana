@@ -20,17 +20,17 @@ if (isset($_POST['save'])) {
     $precio = $_POST['precio'];
     $stock = $_POST['stock'];
     $id_categoria = $_POST['id_categoria'];
-    $id_almacen = $_POST['id_almacen'];
+    //$id_almacen = $_POST['id_almacen'];
     $fecha_creacion = date("Y-m-d H:i:s");
 
-    // Determinar el id_comunario basado en el rol del usuario
+    /* Determinar el id_comunario basado en el rol del usuario
     if ($user_role === 'administrador') {
         // El administrador puede crear productos para cualquier comunario
         $id_comunario = $_POST['id_comunario'];
     } else {
         // Los comunarios solo pueden crear productos para sí mismos
         $id_comunario = $user_id;
-    }
+    }*/
 
     // Manejo de las imágenes
     $imagenes = [];
@@ -70,18 +70,11 @@ if (isset($_POST['save'])) {
     if ($stmt->execute()) {
         $id_producto = $stmt->insert_id;
         
-        // Insertar en la tabla ESTA para relacionar el producto con el almacén
-        $query_esta = "INSERT INTO esta (id_producto, id_almacen) VALUES (?, ?)";
+        //Insertar en la tabla ESTA para relacionar el producto con el almacén
+        $query_esta = "INSERT INTO esta (id_producto) VALUES (?)";
         $stmt_esta = $conn->prepare($query_esta);
-        $stmt_esta->bind_param("ii", $id_producto, $id_almacen);
         
-        if ($stmt_esta->execute()) {
-            $_SESSION['message'] = 'Producto guardado correctamente';
-            $_SESSION['message_type'] = 'success';
-        } else {
-            $_SESSION['message'] = 'Error al asignar el producto al almacén: ' . $stmt_esta->error;
-            $_SESSION['message_type'] = 'danger';
-        }
+        
         
         $stmt_esta->close();
     } else {

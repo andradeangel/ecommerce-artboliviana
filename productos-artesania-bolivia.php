@@ -15,19 +15,31 @@ $sql_categorias = "SELECT id_categoria, nombre_categoria FROM CATEGORIA";
 $result_categorias = $conn->query($sql_categorias);
 
 // Obtener el id de la categoría seleccionada si existe
-$id_categoria = isset($_GET['id_categoria']) ? $_GET['id_categoria'] : null;
+$id_categoria = isset($_GET['id_categoria']) ? (int) $_GET['id_categoria'] : null;
 
 // Consulta de productos con unión para obtener el nombre del comunario y la comunidad
 $sql = "SELECT P.id_producto, P.nombre, P.caracteristica, P.id_categoria, P.precio, P.stock, P.imagenes, U.nombre AS nombre_comunario, U.apellido AS apellido_comunario, C.nombre AS nombre_comunidad 
         FROM PRODUCTO P
-        INNER JOIN COMUNARIO CO ON P.id_comunario = CO.id_comunario
-        INNER JOIN USUARIO U ON CO.id_comunario = U.id_usuario
-        INNER JOIN COMUNIDAD C ON CO.id_comunidad = C.id_comunidad";
+        LEFT JOIN COMUNARIO CO ON P.id_comunario = CO.id_comunario
+        LEFT JOIN USUARIO U ON CO.id_comunario = U.id_usuario
+        LEFT JOIN COMUNIDAD C ON CO.id_comunidad = C.id_comunidad";
 
 if ($id_categoria) {
-    $sql .= " WHERE id_categoria = $id_categoria";
+    $sql .= " WHERE P.id_categoria = ?";
 }
-$result_productos = $conn->query($sql);
+$sql .= " ORDER BY P.nombre ASC";
+
+$stmt = $conn->prepare($sql);
+if ($stmt) {
+    if ($id_categoria) {
+        $stmt->bind_param("i", $id_categoria);
+    }
+    $stmt->execute();
+    $result_productos = $stmt->get_result();
+    $stmt->close();
+} else {
+    $result_productos = false;
+}
 
 
 
@@ -165,6 +177,9 @@ if (usuarioLogueado()) {
 
     <main class="container mx-auto px-6 py-24" style="padding-top: 150px;">
         <h1 class="text-4xl font-bold text-center text-gray-800 mb-12">Nuestros Productos Artesanales</h1>
+        <div class="max-w-xl mx-auto mb-10">
+            <input type="text" id="product-search" placeholder="Buscar productos" class="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-300" autocomplete="off">
+        </div>
         
         <!-- Mostrar los filtros de categorías -->
         <div class="flex justify-center mb-8">
@@ -180,63 +195,116 @@ if (usuarioLogueado()) {
 
         <!-- Mostrar productos -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <?php while($row = $result_productos->fetch_assoc()): ?>
-            <div class="product-card bg-white rounded-lg shadow-md overflow-hidden">
-            <?php
-                // Deserializar las imágenes
-                $imagenes = unserialize($row['imagenes']);
-                if ($imagenes && is_array($imagenes) && !empty($imagenes)) {
-                    // Mostrar la primera imagen del array
-                    $imagen_principal = $imagenes[0];
-                } else {
-                    // Si no hay imágenes, mostrar una imagen por defecto
-                    $imagen_principal = 'img/404.png';
-                }
-            ?>
-            <div id="carousel-<?php echo $row['id_producto']; ?>" class="carousel slide" data-bs-ride="carousel">
-                <div class="carousel-inner">
-                    <?php foreach ($imagenes as $index => $imagen): ?>
-                        <div class="carousel-item <?php echo $index === 0 ? 'active' : ''; ?>">
-                            <img src="<?php echo 'Dashboard/Funciones_db/Crud_administrador/uploads/' . $imagen; ?>" alt="<?php echo $row['nombre']; ?>" class="d-block w-100 h-48 object-cover">
+            <?php if ($result_productos && $result_productos->num_rows > 0): ?>
+                <?php while ($row = $result_productos->fetch_assoc()): ?>
+                    <?php
+                        $imagenesData = @unserialize($row['imagenes']);
+                        $imagenes = [];
+                        if (is_array($imagenesData)) {
+                            foreach ($imagenesData as $imagen) {
+                                if ($imagen) {
+                                    $imagenes[] = 'Dashboard/Funciones_db/Crud_administrador/uploads/' . $imagen;
+                                }
+                            }
+                        }
+                        if (!$imagenes) {
+                            $imagenes[] = 'img/404.png';
+                        }
+                        $nombreArtesano = trim(($row['nombre_comunario'] ?? '') . ' ' . ($row['apellido_comunario'] ?? ''));
+                        if ($nombreArtesano === '') {
+                            $nombreArtesano = 'No asignado';
+                        }
+                        $nombreComunidad = $row['nombre_comunidad'] ? $row['nombre_comunidad'] : 'No asignada';
+                        $productoNombre = $row['nombre'] ?? '';
+                        $productoCaracteristica = $row['caracteristica'] ?? '';
+                        $searchIndexSource = $productoNombre . ' ' . $productoCaracteristica;
+                        $searchIndex = function_exists('mb_strtolower') ? mb_strtolower($searchIndexSource, 'UTF-8') : strtolower($searchIndexSource);
+                    ?>
+                    <div class="product-card bg-white rounded-lg shadow-md overflow-hidden" data-search="<?php echo htmlspecialchars($searchIndex, ENT_QUOTES, 'UTF-8'); ?>">
+                        <div id="carousel-<?php echo $row['id_producto']; ?>" class="carousel slide" data-bs-ride="carousel">
+                            <div class="carousel-inner">
+                                <?php foreach ($imagenes as $index => $imagen): ?>
+                                    <div class="carousel-item <?php echo $index === 0 ? 'active' : ''; ?>">
+                                        <img src="<?php echo htmlspecialchars($imagen); ?>" alt="<?php echo htmlspecialchars($row['nombre']); ?>" class="d-block w-100 h-48 object-cover">
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                            <button class="carousel-control-prev" type="button" data-bs-target="#carousel-<?php echo $row['id_producto']; ?>" data-bs-slide="prev">
+                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Anterior</span>
+                            </button>
+                            <button class="carousel-control-next" type="button" data-bs-target="#carousel-<?php echo $row['id_producto']; ?>" data-bs-slide="next">
+                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Siguiente</span>
+                            </button>
                         </div>
-                    <?php endforeach; ?>
-                </div>
-                <!-- Controles para la galería -->
-                <button class="carousel-control-prev" type="button" data-bs-target="#carousel-<?php echo $row['id_producto']; ?>" data-bs-slide="prev">
-                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                    <span class="visually-hidden">Anterior</span>
-                </button>
-                <button class="carousel-control-next" type="button" data-bs-target="#carousel-<?php echo $row['id_producto']; ?>" data-bs-slide="next">
-                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                    <span class="visually-hidden">Siguiente</span>
-                </button>
-                </div>
-                
-                <div class="p-6">
-                    <h3 class="font-semibold text-xl mb-2"><?php echo $row['nombre']; ?></h3>
-                    <p class="text-gray-600 mb-4"><?php echo $row['caracteristica']; ?></p>
-                    <div class="text-gray-500 mb-4">Artesano: <strong><?php echo $row['nombre_comunario'] . ' ' . $row['apellido_comunario']; ?></strong></div>
-                    <div class="text-gray-500 mb-4">Comunidad: <strong><?php echo $row['nombre_comunidad']; ?></strong></div>
-                    <div class="flex justify-between items-center">
-                        <span class="text-xl font-bold text-custom-800">BOB <?php echo $row['precio']; ?></span>
-                        <span class="text-sm text-gray-600">Stock: <?php echo $row['stock']; ?></span>
+                        <div class="p-6">
+                            <h3 class="font-semibold text-xl mb-2"><?php echo htmlspecialchars($row['nombre']); ?></h3>
+                            <p class="text-gray-600 mb-4"><?php echo htmlspecialchars($row['caracteristica']); ?></p>
+                            <div class="flex justify-between items-center">
+                                <span class="text-xl font-bold text-custom-800">BOB <?php echo htmlspecialchars($row['precio']); ?></span>
+                                <span class="text-sm text-gray-600">Stock: <?php echo htmlspecialchars($row['stock']); ?></span>
+                            </div>
+                            <a href="detalles_producto.php?id_producto=<?php echo $row['id_producto']; ?>" class="w-full text-white px-4 py-2 rounded-md block text-center mt-4 no-underline" style="background-color: #FFA07A;">Ver Detalles</a>
+                            <form method="POST" action="productos-artesania-bolivia.php">
+                                <input type="hidden" name="id_producto" value="<?php echo $row['id_producto']; ?>">
+                                <input type="number" name="cantidad" value="1" min="1" class="w-full border border-gray-300 rounded-md mt-2 mb-2 px-2 py-1">
+                                <button type="submit" name="agregar_carrito" class="w-full bg-gray-500 text-white px-4 py-2 rounded-md">Añadir al Carrito</button>
+                            </form>
+                        </div>
                     </div>
-
-                    <!-- Botón para abrir el modal -->
-                    <!-- <button type="button" class="w-full text-white px-4 py-2 rounded-md block text-center mt-4" data-bs-toggle="modal" data-bs-target="#modal-<?php echo $row['id_producto']; ?>" style="background-color: #f69060;">Ver Detalles</button> -->
-                    <a href="detalles_producto.php?id_producto=<?php echo $row['id_producto']; ?>" class="w-full text-white px-4 py-2 rounded-md block text-center mt-4 no-underline" style="background-color: #FFA07A;">Ver Detalles</a>
-
-
-                    <form method="POST" action="productos-artesania-bolivia.php">
-                        <input type="hidden" name="id_producto" value="<?php echo $row['id_producto']; ?>">
-                        <input type="number" name="cantidad" value="1" min="1" class="w-full border border-gray-300 rounded-md mt-2 mb-2 px-2 py-1">
-                        <button type="submit" name="agregar_carrito" class="w-full bg-gray-500 text-white px-4 py-2 rounded-md">Añadir al Carrito</button>
-                    </form>
-
-                </div>
-            </div>
-            <?php endwhile; ?>
+                    <div class="modal fade" id="modal-<?php echo $row['id_producto']; ?>" tabindex="-1" aria-labelledby="modalLabel-<?php echo $row['id_producto']; ?>" aria-hidden="true">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="modalLabel-<?php echo $row['id_producto']; ?>"><?php echo htmlspecialchars($row['nombre']); ?></h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="text-center">
+                                        <div id="carousel-modal-<?php echo $row['id_producto']; ?>" class="carousel slide" data-bs-ride="carousel">
+                                            <div class="carousel-inner">
+                                                <?php foreach ($imagenes as $index => $imagen): ?>
+                                                    <div class="carousel-item <?php echo $index === 0 ? 'active' : ''; ?>">
+                                                        <img src="<?php echo htmlspecialchars($imagen); ?>" alt="<?php echo htmlspecialchars($row['nombre']); ?>" class="d-block w-100">
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                            <button class="carousel-control-prev" type="button" data-bs-target="#carousel-modal-<?php echo $row['id_producto']; ?>" data-bs-slide="prev">
+                                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                                <span class="visually-hidden">Anterior</span>
+                                            </button>
+                                            <button class="carousel-control-next" type="button" data-bs-target="#carousel-modal-<?php echo $row['id_producto']; ?>" data-bs-slide="next">
+                                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                                <span class="visually-hidden">Siguiente</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="mt-4">
+                                        <h4>Características del producto</h4>
+                                        <p><?php echo htmlspecialchars($row['caracteristica']); ?></p>
+                                        <h4>Información del Artesano</h4>
+                                        <p>Artesano: <strong><?php echo htmlspecialchars($nombreArtesano); ?></strong></p>
+                                        <p>Comunidad: <strong><?php echo htmlspecialchars($nombreComunidad); ?></strong></p>
+                                        <div class="mt-4">
+                                            <h4>Precio y Stock</h4>
+                                            <p>Precio: BOB <?php echo htmlspecialchars($row['precio']); ?></p>
+                                            <p>Stock: <?php echo htmlspecialchars($row['stock']); ?></p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                <?php endwhile; ?>
+            <?php else: ?>
+                <p class="text-center text-gray-600 col-span-1 md:col-span-3">No se encontraron productos.</p>
+            <?php endif; ?>
         </div>
+        <p id="no-results" class="text-center text-gray-600 hidden">No se encontraron productos para tu búsqueda.</p>
     </main>
 
     <!-- Modal para Iniciar Sesión -->
@@ -350,63 +418,6 @@ if (usuarioLogueado()) {
         </div>
     </div>
 
-    <!-- Modal de detalles producto -->
-    <div class="modal fade" id="modal-<?php echo $row['id_producto']; ?>" tabindex="-1" aria-labelledby="modalLabel-<?php echo $row['id_producto']; ?>" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="modalLabel-<?php echo $row['id_producto']; ?>"><?php echo $row['nombre']; ?></h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="text-center">
-                        <!-- Mostrar galería de imágenes -->
-                        <div id="carousel-<?php echo $row['id_producto']; ?>" class="carousel slide" data-bs-ride="carousel">
-                            <div class="carousel-inner">
-                                <?php foreach ($imagenes as $index => $imagen): ?>
-                                    <div class="carousel-item <?php echo $index === 0 ? 'active' : ''; ?>">
-                                        <img src="<?php echo 'Dashboard/Funciones_db/Crud_administrador/uploads/' . $imagen; ?>" alt="<?php echo $row['nombre']; ?>" class="d-block w-100">
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-                            <button class="carousel-control-prev" type="button" data-bs-target="#carousel-<?php echo $row['id_producto']; ?>" data-bs-slide="prev">
-                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                                <span class="visually-hidden">Anterior</span>
-                            </button>
-                            <button class="carousel-control-next" type="button" data-bs-target="#carousel-<?php echo $row['id_producto']; ?>" data-bs-slide="next">
-                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                                <span class="visually-hidden">Siguiente</span>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="mt-4">
-                        <h4>Características del producto</h4>
-                        <p><?php echo $row['caracteristica']; ?></p>
-
-                        <h4>Información del Artesano</h4>
-                        <p>Artesano: <strong><?php echo $row['nombre_comunario'] . ' ' . $row['apellido_comunario']; ?></strong></p>
-                        <p>Comunidad: <strong><?php echo $row['nombre_comunidad']; ?></strong></p>
-
-                        <div class="mt-4">
-                            <h4>Precio y Stock</h4>
-                            <p>Precio: BOB <?php echo $row['precio']; ?></p>
-                            <p>Stock: <?php echo $row['stock']; ?></p>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-
-
-
-
-
     <footer class="bg-gray-800 text-white py-12">
         <div class="container mx-auto px-6">
             <div class="flex flex-wrap justify-between">
@@ -443,6 +454,35 @@ if (usuarioLogueado()) {
         </div>
     </footer>
 
+    <script>
+        const searchInput = document.getElementById('product-search');
+        const productCards = document.querySelectorAll('.product-card');
+        const noResults = document.getElementById('no-results');
+        if (searchInput) {
+            const filterProducts = () => {
+                const term = searchInput.value.trim().toLowerCase();
+                let visible = 0;
+                productCards.forEach(card => {
+                    const matches = !term || card.dataset.search.includes(term);
+                    if (matches) {
+                        card.classList.remove('hidden');
+                        visible += 1;
+                    } else {
+                        card.classList.add('hidden');
+                    }
+                });
+                if (noResults) {
+                    if (visible === 0 && productCards.length > 0) {
+                        noResults.classList.remove('hidden');
+                    } else {
+                        noResults.classList.add('hidden');
+                    }
+                }
+            };
+            searchInput.addEventListener('input', filterProducts);
+            filterProducts();
+        }
+    </script>
 
     <script>
         function handleCredentialResponse(response) {
