@@ -167,7 +167,7 @@ $body = "
             <p>Si <strong>NO</strong> solicitaste este cambio, ignora este email y tu contraseña no será modificada.</p>
         </div>
         <div class='footer'>
-            <p>&copy; 2024 ArtesaníaBoliviana. Todos los derechos reservados.</p>
+            <p>&copy; 2025 ArtesaníaBoliviana. Todos los derechos reservados.</p>
             <p style='font-size: 10px; color: #999;'>Este es un correo automático, por favor no respondas.</p>
         </div>
     </div>

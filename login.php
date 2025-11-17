@@ -120,7 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         </div>
         <div class="g_id_signin" data-type="standard"></div>
 
-        <footer>&copy; 2024 Plataforma Artesanal</footer>
+        <footer>&copy; 2025 Plataforma Artesanal</footer>
     </div>
 </div>
 

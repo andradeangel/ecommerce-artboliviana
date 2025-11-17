@@ -88,13 +88,35 @@ if (isset($_SESSION['carrito']) && !empty($_SESSION['carrito'])) {
 
         if ($resultado && $resultado->num_rows > 0) {
             while ($fila = $resultado->fetch_assoc()) {
-                // Recuperar los detalles y cantidad almacenados en la sesión
                 $fila['cantidad'] = $_SESSION['carrito'][$fila['id_producto']]['cantidad'];
-                // Verificar si existe 'detalles' antes de acceder a él
                 $fila['detalles'] = isset($_SESSION['carrito'][$fila['id_producto']]['detalles']) ? $_SESSION['carrito'][$fila['id_producto']]['detalles'] : 'N/A';
                 $productos_en_carrito[] = $fila;
             }
         }
+    }
+}
+
+function usuarioLogueado() {
+    return isset($_SESSION['id_usuario']);
+}
+
+$usuario_nombre = '';
+$usuario_tipo = '';
+
+if (usuarioLogueado()) {
+    $id_usuario = $_SESSION['id_usuario'];
+    $consultaUsuario = "SELECT nombre, rol FROM usuario WHERE id_usuario = ?";
+    $stmtUsuario = $conn->prepare($consultaUsuario);
+    if ($stmtUsuario) {
+        $stmtUsuario->bind_param("i", $id_usuario);
+        $stmtUsuario->execute();
+        $resultadoUsuario = $stmtUsuario->get_result();
+        if ($resultadoUsuario && $resultadoUsuario->num_rows > 0) {
+            $datosUsuario = $resultadoUsuario->fetch_assoc();
+            $usuario_nombre = $datosUsuario['nombre'];
+            $usuario_tipo = $datosUsuario['rol'];
+        }
+        $stmtUsuario->close();
     }
 }
 
@@ -131,13 +153,43 @@ if (isset($_SESSION['carrito']) && !empty($_SESSION['carrito'])) {
                 <a href="index.php" class="nav-link text-gray-800 mx-3" style="color: black;" onmouseover="this.style.color='#e65b50'" onmouseout="this.style.color='black'">Inicio</a>
                 <a href="productos-artesania-bolivia.php" class="nav-link text-gray-800 mx-3" style="color: black;" onmouseover="this.style.color='#e65b50'" onmouseout="this.style.color='black'">Productos</a>
                 <a href="carrito.php" class="nav-link text-gray-800 mx-3" style="color: black;" onmouseover="this.style.color='#e65b50'" onmouseout="this.style.color='black'">Carrito</a>
-                <a href="#" class="nav-link text-gray-800 mx-3" style="color: black;" onmouseover="this.style.color='#e65b50'" onmouseout="this.style.color='black'">Sobre Nosotros</a>
-                
-                <!-- Botones para abrir los modales -->
+                <a href="aboutus.php" class="nav-link text-gray-800 mx-3" style="color: black;" onmouseover="this.style.color='#e65b50'" onmouseout="this.style.color='black'">Sobre Nosotros</a>
+                <?php if (usuarioLogueado()): ?>
+                <div class="flex items-center">
+                    <?php
+                        $dashboard_url = 'dashboard.php';
+                        switch ($usuario_tipo) {
+                            case 'comprador':
+                                $dashboard_url = 'Dashboard/Dashboard_comprador.php';
+                                break;
+                            case 'vendedor':
+                                $dashboard_url = 'Dashboard/Dashboard_comunario.php';
+                                break;
+                            case 'delivery':
+                                $dashboard_url = 'Dashboard/Dashboard_delivery.php';
+                                break;
+                            case 'administrador':
+                                $dashboard_url = 'Dashboard/Dashboard_administrador.php';
+                                break;
+                        }
+                    ?>
+                    <div class="relative">
+                        <button id="userMenuButton" class="flex items-center focus:outline-none" onclick="toggleUserMenu()">
+                            <span class="mr-2"><?php echo htmlspecialchars($usuario_nombre); ?></span>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                        <div id="userMenu" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg hidden">
+                            <a href="logout.php" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Cerrar Sesión</a>
+                        </div>
+                    </div>
+                    <a href="<?php echo $dashboard_url; ?>" class="mx-3 cursor-pointer hover:opacity-80 transition-opacity" title="Ver Perfil">
+                        <img src="img/user.png" alt="Perfil" class="w-10 h-10 rounded-full object-cover border-2 border-gray-300">
+                    </a>
+                </div>
+                <?php else: ?>
                 <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#loginModal">Iniciar Sesión</button>
                 <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#registroModal">Registrarse</button>
-
-
+                <?php endif; ?>
             </div>
         </nav>
     </header>
@@ -224,7 +276,7 @@ if (isset($_SESSION['carrito']) && !empty($_SESSION['carrito'])) {
                     </div>
                     <div class="g_id_signin" data-type="standard"></div>
 
-                    <footer>&copy; 2024 Plataforma Artesanal</footer>
+                    <footer>&copy; 2025 Plataforma Artesanal</footer>
                 </div>
             </div>
         </div>
@@ -291,7 +343,7 @@ if (isset($_SESSION['carrito']) && !empty($_SESSION['carrito'])) {
                 </div>
             </div>
             <div class="border-t border-gray-700 mt-8 pt-8 text-center">
-                <p class="text-gray-400">&copy; 2024 ArtesaníaBolivia. Todos los derechos reservados.</p>
+                <p class="text-gray-400">&copy; 2025 ArtesaníaBolivia. Todos los derechos reservados.</p>
             </div>
         </div>
     </footer>
@@ -318,7 +370,23 @@ if (isset($_SESSION['carrito']) && !empty($_SESSION['carrito'])) {
                 client_id: '483219139081-2fqjpmji0tr9m7djadpf9n5p64n21slo.apps.googleusercontent.com',
                 callback: handleCredentialResponse
             });
-            google.accounts.id.prompt(); // Mostrar el prompt de Google
+            google.accounts.id.prompt();
+        };
+
+        function toggleUserMenu() {
+            var menu = document.getElementById('userMenu');
+            if (menu) {
+                menu.classList.toggle('hidden');
+            }
+        }
+
+        window.onclick = function(event) {
+            if (!event.target.matches('#userMenuButton') && !event.target.closest('#userMenu')) {
+                var menu = document.getElementById('userMenu');
+                if (menu && !menu.classList.contains('hidden')) {
+                    menu.classList.add('hidden');
+                }
+            }
         };
 
     </script>

@@ -188,7 +188,7 @@ if (usuarioLogueado()) {
                 </div>
             </div>
             <div class="border-t border-gray-700 mt-8 pt-8 text-center">
-                <p class="text-gray-400">&copy; 2024 ArtesaníaBolivia. Todos los derechos reservados.</p>
+                <p class="text-gray-400">&copy; 2025 ArtesaníaBolivia. Todos los derechos reservados.</p>
             </div>
         </div>
     </footer>

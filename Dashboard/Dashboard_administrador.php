@@ -88,13 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['actualizar_estado_pag
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="gestionesDropdown">
                             <li><a class="dropdown-item" href="?seccion=usuarios">Gestión de Usuarios</a></li>
-                            <li><a class="dropdown-item" href="?seccion=almacen">Gestión de Almacén</a></li>
-                            <li><a class="dropdown-item" href="?seccion=departamentos">Gestión de Departamentos</a></li>
-                            <li><a class="dropdown-item" href="?seccion=comunidades">Gestión de Comunidades</a></li>
-                            <li><a class="dropdown-item" href="?seccion=empresaD">Gestión de Empresas Delivery</a></li>
-                            <li><a class="dropdown-item" href="?seccion=categoriaP">Gestión de Categorías</a></li>
                             <li><a class="dropdown-item" href="?seccion=productos">Gestión de Productos</a></li>
-                            <li><a class="dropdown-item" href="?seccion=pedidos">Gestión de Pedidos</a></li>
                         </ul>
                     </li>
                     <li class="nav-item">

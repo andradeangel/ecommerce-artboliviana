@@ -1,24 +1,13 @@
 <?php
-/**
- * Configuración para el envío de emails
- * 
- * ⚠️ IMPORTANTE: Esta configuración es para la CUENTA DE EMAIL DEL SISTEMA
- * No es para los emails de los usuarios. Esta es la cuenta que usará tu aplicación
- * para enviar correos a los usuarios (como los de recuperación de contraseña).
- * 
- * Ejemplo:
- * - Si usas Gmail, crea UNA cuenta para tu aplicación (ej: artesaniaboliviana@gmail.com)
- * - Esa cuenta será la que envíe todos los correos a tus usuarios
- * - Los usuarios recibirán correos EN SU EMAIL PERSONAL, pero ENVIADOS desde esta cuenta
- */
+
 
 // Configuración SMTP del SERVIDOR DE CORREO del sistema
 define('SMTP_HOST', 'smtp.gmail.com');  // Servidor SMTP (Gmail, Outlook, etc.)
 define('SMTP_PORT', 587);                // 587 para TLS, 465 para SSL
-define('SMTP_USERNAME', 'andradefoldine.10@gmail.com');  // EMAIL DE LA CUENTA DEL SISTEMA (la que enviará los correos)
-define('SMTP_PASSWORD', 'zgyxvzwmuuzszpiz');  // Contraseña de aplicación de Gmail (SIN ESPACIOS)
+define('SMTP_USERNAME', '');  // EMAIL DE LA CUENTA DEL SISTEMA (la que enviará los correos)
+define('SMTP_PASSWORD', '');  // Contraseña de aplicación de Gmail (SIN ESPACIOS)
 define('SMTP_ENCRYPTION', 'tls');        // 'tls' o 'ssl'
-define('SMTP_FROM_EMAIL', 'andradefoldine.10@gmail.com');  // Email desde el cual se enviarán los correos
+define('SMTP_FROM_EMAIL', '');  // Email desde el cual se enviarán los correos
 define('SMTP_FROM_NAME', 'ArtesaníaBoliviana');  // Nombre que aparecerá como remitente
 
 // URL base de la aplicación (sin barra final)

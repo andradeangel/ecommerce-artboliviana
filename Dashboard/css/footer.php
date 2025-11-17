@@ -3,7 +3,7 @@
 <!-- Footer fijo en la parte inferior -->
 <footer class="footer bg-dark text-white">
     <div class="container text-center py-3">
-        <span>© 2024 Plataforma de Comercio Artesanal - Panel de Administración</span>
+        <span>© 2025 Plataforma de Comercio Artesanal - Panel de Administración</span>
     </div>
 </footer>
 

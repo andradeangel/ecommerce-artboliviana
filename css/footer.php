@@ -45,7 +45,7 @@
     </div>
 
     <div class="text-center p-3" style="background-color: rgba(0, 0, 0, 0.2);">
-        © 2024 Plataforma de Comercio Electrónico | Todos los derechos reservados
+        © 2025 Plataforma de Comercio Electrónico | Todos los derechos reservados
     </div>
 </footer>
 

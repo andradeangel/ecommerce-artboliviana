@@ -169,7 +169,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         </form>
 
         <p>¿Ya tienes una cuenta? <a href="login.php">Inicia sesión</a></p>
-        <footer>&copy; 2024 Plataforma Artesanal</footer>
+        <footer>&copy; 2025 Plataforma Artesanal</footer>
     </div>
 </div>
 

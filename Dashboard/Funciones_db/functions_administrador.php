@@ -406,16 +406,71 @@ function actualizarEstadoPedido($idPedido, $estadoPedido) {
         return false;
     }
 
-    $stmt = $conn->prepare("UPDATE pedido_carrito SET estado_pedido = ? WHERE id_pedido_carrito = ?");
-    if (!$stmt) {
+    $stmtPedido = $conn->prepare("SELECT estado_pedido, cantidad, id_producto FROM pedido_carrito WHERE id_pedido_carrito = ?");
+    if (!$stmtPedido) {
         return false;
     }
 
-    $stmt->bind_param("si", $estadoPedido, $idPedido);
-    $resultado = $stmt->execute();
-    $stmt->close();
+    $stmtPedido->bind_param("i", $idPedido);
+    if (!$stmtPedido->execute()) {
+        $stmtPedido->close();
+        return false;
+    }
 
-    return $resultado;
+    $stmtPedido->bind_result($estadoActual, $cantidad, $idProducto);
+    if (!$stmtPedido->fetch()) {
+        $stmtPedido->close();
+        return false;
+    }
+    $stmtPedido->close();
+
+    $cantidad = max((int) $cantidad, 0);
+    $idProducto = (int) $idProducto;
+
+    if ($idProducto <= 0) {
+        return false;
+    }
+
+    if (!$conn->begin_transaction()) {
+        return false;
+    }
+
+    try {
+        if ($estadoPedido === 'completado' && $estadoActual !== 'completado' && $cantidad > 0) {
+            $stmtStock = $conn->prepare("UPDATE producto SET stock = GREATEST(stock - ?, 0) WHERE id_producto = ?");
+            if (!$stmtStock) {
+                $conn->rollback();
+                return false;
+            }
+            $stmtStock->bind_param("ii", $cantidad, $idProducto);
+            if (!$stmtStock->execute()) {
+                $stmtStock->close();
+                $conn->rollback();
+                return false;
+            }
+            $stmtStock->close();
+        }
+
+        $stmtActualizar = $conn->prepare("UPDATE pedido_carrito SET estado_pedido = ? WHERE id_pedido_carrito = ?");
+        if (!$stmtActualizar) {
+            $conn->rollback();
+            return false;
+        }
+        $stmtActualizar->bind_param("si", $estadoPedido, $idPedido);
+        if (!$stmtActualizar->execute()) {
+            $stmtActualizar->close();
+            $conn->rollback();
+            return false;
+        }
+        $stmtActualizar->close();
+
+        $conn->commit();
+    } catch (mysqli_sql_exception $e) {
+        $conn->rollback();
+        return false;
+    }
+
+    return true;
 }
 
 function actualizarEstadoPago($idPago, $estadoPago) {

@@ -67,7 +67,7 @@ try {
             // Create new user
             $password = password_hash(uniqid(), PASSWORD_DEFAULT);
             
-            $stmt = $conn->prepare("INSERT INTO usuario (nombre, apellido, correo, contraseña, rol) VALUES (?, ?, ?, ?, 'comprador')");
+            $stmt = $conn->prepare("INSERT INTO usuario (nombre, apellido, correo, contraseña, rol, fecha_registro) VALUES (?, ?, ?, ?, 'comprador', NOW())");
             $stmt->bind_param("ssss", $nombre, $apellido, $email, $password);
             
             if (!$stmt->execute()) {

@@ -41,34 +41,68 @@ if ($stmt) {
     $result_productos = false;
 }
 
+$productos = array();
+if ($result_productos) {
+    while ($fila = $result_productos->fetch_assoc()) {
+        $productos[] = $fila;
+    }
+}
+
 
 
 // Lógica para agregar productos al carrito
 if (isset($_POST['agregar_carrito'])) {
-    $id_producto = $_POST['id_producto'];
-    $cantidad = $_POST['cantidad'];
-
-    // Verificar si ya existe el carrito en la sesión
-    if (!isset($_SESSION['carrito'])) {
-        $_SESSION['carrito'] = array();
+    $id_producto = isset($_POST['id_producto']) ? (int) $_POST['id_producto'] : 0;
+    $cantidad = isset($_POST['cantidad']) ? (int) $_POST['cantidad'] : 1;
+    if ($cantidad < 1) {
+        $cantidad = 1;
     }
-
-    // Si el producto ya está en el carrito, actualizar la cantidad
-    if (isset($_SESSION['carrito'][$id_producto])) {
-        $_SESSION['carrito'][$id_producto]['cantidad'] += $cantidad;
-    } else {
-        // Si el producto no está en el carrito, obtener la información del producto
-        $sql_producto = "SELECT id_producto, nombre, precio FROM PRODUCTO WHERE id_producto = $id_producto";
-        $result_producto = $conn->query($sql_producto);
-        if ($result_producto->num_rows > 0) {
-            $producto = $result_producto->fetch_assoc();
-            $_SESSION['carrito'][$id_producto] = array(
-                'nombre' => $producto['nombre'],
-                'precio' => $producto['precio'],
-                'cantidad' => $cantidad
-            );
+    if ($id_producto > 0) {
+        if (!isset($_SESSION['carrito'])) {
+            $_SESSION['carrito'] = array();
+        }
+        $stmt_producto = $conn->prepare("SELECT id_producto, nombre, precio, id_categoria FROM PRODUCTO WHERE id_producto = ?");
+        if ($stmt_producto) {
+            $stmt_producto->bind_param("i", $id_producto);
+            $stmt_producto->execute();
+            $result_producto = $stmt_producto->get_result();
+            if ($result_producto && $result_producto->num_rows > 0) {
+                $producto = $result_producto->fetch_assoc();
+                if (isset($_SESSION['carrito'][$id_producto])) {
+                    $_SESSION['carrito'][$id_producto]['cantidad'] = (int) $_SESSION['carrito'][$id_producto]['cantidad'] + $cantidad;
+                } else {
+                    $_SESSION['carrito'][$id_producto] = array(
+                        'nombre' => $producto['nombre'],
+                        'precio' => $producto['precio'],
+                        'cantidad' => $cantidad
+                    );
+                }
+                $categoria_preferencia = (int) $producto['id_categoria'];
+                if ($categoria_preferencia > 0) {
+                    if (!isset($_SESSION['preferencias_categorias'])) {
+                        $_SESSION['preferencias_categorias'] = array();
+                    }
+                    if (!isset($_SESSION['preferencias_categorias'][$categoria_preferencia])) {
+                        $_SESSION['preferencias_categorias'][$categoria_preferencia] = 0;
+                    }
+                    $_SESSION['preferencias_categorias'][$categoria_preferencia] += $cantidad;
+                }
+            }
+            $stmt_producto->close();
         }
     }
+}
+
+$preferencias_categorias = isset($_SESSION['preferencias_categorias']) ? $_SESSION['preferencias_categorias'] : array();
+if (!empty($productos)) {
+    usort($productos, function ($a, $b) use ($preferencias_categorias) {
+        $peso_a = isset($preferencias_categorias[$a['id_categoria']]) ? $preferencias_categorias[$a['id_categoria']] : 0;
+        $peso_b = isset($preferencias_categorias[$b['id_categoria']]) ? $preferencias_categorias[$b['id_categoria']] : 0;
+        if ($peso_a === $peso_b) {
+            return strcasecmp($a['nombre'], $b['nombre']);
+        }
+        return $peso_b <=> $peso_a;
+    });
 }
 
 // Verificar si el usuario está logueado
@@ -195,8 +229,8 @@ if (usuarioLogueado()) {
 
         <!-- Mostrar productos -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <?php if ($result_productos && $result_productos->num_rows > 0): ?>
-                <?php while ($row = $result_productos->fetch_assoc()): ?>
+            <?php if (!empty($productos)): ?>
+                <?php foreach ($productos as $row): ?>
                     <?php
                         $imagenesData = @unserialize($row['imagenes']);
                         $imagenes = [];
@@ -299,7 +333,7 @@ if (usuarioLogueado()) {
                             </div>
                         </div>
                     </div>
-                <?php endwhile; ?>
+                <?php endforeach; ?>
             <?php else: ?>
                 <p class="text-center text-gray-600 col-span-1 md:col-span-3">No se encontraron productos.</p>
             <?php endif; ?>
@@ -336,7 +370,7 @@ if (usuarioLogueado()) {
                     </div>
                     <div class="g_id_signin" data-type="standard"></div>
 
-                    <footer>&copy; 2024 Plataforma Artesanal</footer>
+                    <footer>&copy; 2025 Plataforma Artesanal</footer>
                 </div>
             </div>
         </div>
@@ -449,40 +483,70 @@ if (usuarioLogueado()) {
                 </div>
             </div>
             <div class="border-t border-gray-700 mt-8 pt-8 text-center">
-                <p class="text-gray-400">&copy; 2024 ArtesaníaBolivia. Todos los derechos reservados.</p>
+                <p class="text-gray-400">&copy; 2025 ArtesaníaBolivia. Todos los derechos reservados.</p>
             </div>
         </div>
     </footer>
 
     <script>
-        const searchInput = document.getElementById('product-search');
-        const productCards = document.querySelectorAll('.product-card');
-        const noResults = document.getElementById('no-results');
-        if (searchInput) {
-            const filterProducts = () => {
-                const term = searchInput.value.trim().toLowerCase();
-                let visible = 0;
-                productCards.forEach(card => {
-                    const matches = !term || card.dataset.search.includes(term);
-                    if (matches) {
-                        card.classList.remove('hidden');
-                        visible += 1;
-                    } else {
-                        card.classList.add('hidden');
-                    }
+    const searchInput = document.getElementById('product-search');
+    const productCards = document.querySelectorAll('.product-card');
+    const noResults = document.getElementById('no-results');
+    
+    if (searchInput) {
+        // Función para enviar la búsqueda al servidor
+        const trackSearch = (searchTerm) => {
+            if (searchTerm.trim().length > 2) { // Solo trackear búsquedas de más de 2 caracteres
+                fetch('track_search.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'search_term=' + encodeURIComponent(searchTerm)
                 });
-                if (noResults) {
-                    if (visible === 0 && productCards.length > 0) {
-                        noResults.classList.remove('hidden');
-                    } else {
-                        noResults.classList.add('hidden');
-                    }
+            }
+        };
+
+        const filterProducts = () => {
+            const term = searchInput.value.trim().toLowerCase();
+            let visible = 0;
+            
+            productCards.forEach(card => {
+                const matches = !term || card.dataset.search.includes(term);
+                if (matches) {
+                    card.classList.remove('hidden');
+                    visible += 1;
+                } else {
+                    card.classList.add('hidden');
                 }
-            };
-            searchInput.addEventListener('input', filterProducts);
-            filterProducts();
-        }
-    </script>
+            });
+            
+            if (noResults) {
+                if (visible === 0 && productCards.length > 0) {
+                    noResults.classList.remove('hidden');
+                } else {
+                    noResults.classList.add('hidden');
+                }
+            }
+            
+            // Trackear la búsqueda si hay resultados visibles
+            if (term && visible > 0) {
+                trackSearch(term);
+            }
+        };
+        
+        // Usar debounce para no enviar en cada tecla
+        let searchTimeout;
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                filterProducts();
+            }, 500); // Esperar 500ms después de que el usuario deje de escribir
+        });
+        
+        filterProducts();
+    }
+</script>
 
     <script>
         function handleCredentialResponse(response) {
